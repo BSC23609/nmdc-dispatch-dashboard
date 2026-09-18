@@ -66,6 +66,15 @@ td.rem{white-space:normal;min-width:180px;color:var(--muted)}
 td.late{background:var(--late);color:var(--late-ink);font-weight:600}
 .veh{font-weight:600;letter-spacing:.3px}
 .empty{padding:28px 18px;color:var(--muted)}
+.vgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:14px;padding:16px 18px}
+.vcard{border:1px solid var(--line);border-left:6px solid var(--vc);border-radius:4px;padding:12px 14px;background:#fff}
+.vcard .vno{font-family:"Barlow Condensed",Arial,sans-serif;font-size:24px;font-weight:700;letter-spacing:.5px;line-height:1.1}
+.vcard .vtr{color:var(--muted);font-size:14px;margin-bottom:8px}
+.vcard .vcoils{font-size:13px;border-top:1px dashed var(--line);padding-top:8px;margin-top:4px}
+.vcard .vcoils div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
+.vcard .vsum{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:13px}
+.vcard .vsum b{font-size:15px}
+.vcard .late{background:none;color:var(--late-ink)}
 footer{max-width:1300px;margin:0 auto;padding:0 28px 30px;color:var(--muted);font-size:13px}
 footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-radius:3px}
 @media(max-width:820px){.flow{grid-template-columns:1fr 1fr}.stage .arrow{display:none}.stage{border-top:1px solid var(--line)}header h1{font-size:24px}main{padding:16px}}
@@ -94,9 +103,14 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
   <div class="totals" id="totals"></div>
 
   <section>
+    <h2>Vehicles on the road <span class="cnt">grouped by vehicle — a truck normally carries 2 coils</span></h2>
+    <div id="vehicles" class="vgrid"></div>
+  </section>
+
+  <section>
     <h2>Last 10 dispatches <span class="cnt">most recent entries first</span></h2>
     <div class="tw"><table id="recent"><thead><tr>
-      <th>Entry</th><th>Coil no</th><th>Grade</th><th>Size</th><th class="num">Weight (MT)</th><th>Status</th><th>Vehicle no</th><th>Transporter</th><th>LR no</th><th>Expected</th><th>Arrived</th><th>Unit</th><th>Remarks</th>
+      <th>Entry</th><th>SO no</th><th>Coil no</th><th>Form</th><th>Grade</th><th>Size</th><th class="num">Weight (MT)</th><th>Status</th><th>Vehicle no</th><th>Transporter</th><th>LR no</th><th>Expected</th><th>Arrived</th><th>Unit</th><th>Remarks</th>
     </tr></thead><tbody></tbody></table></div>
   </section>
 
@@ -111,11 +125,11 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
       </span>
     </h2>
     <div class="tw"><table id="all"><thead><tr>
-      <th>#</th><th>Entry</th><th>DO / invoice</th><th>Coil no</th><th>Grade</th><th>Size</th><th class="num">Weight (MT)</th><th>Status</th><th>Vehicle no</th><th>Transporter</th><th>LR no</th><th>Dispatched</th><th>Expected</th><th>Arrived</th><th>Unit</th><th>Remarks</th>
+      <th>#</th><th>Entry</th><th>SO no</th><th>DO / invoice</th><th>Coil no</th><th>Form</th><th>Grade</th><th>Size</th><th class="num">Weight (MT)</th><th>Status</th><th>Vehicle no</th><th>Transporter</th><th>LR no</th><th>Dispatched</th><th>Expected</th><th>Arrived</th><th>Unit</th><th>Remarks</th>
     </tr></thead><tbody></tbody></table></div>
   </section>
 </main>
-<footer>Source: table <code id="fTable">tbl_Dispatch</code> on sheet Dispatch_Log. Red expected-arrival dates are overdue. Weights in metric tonnes.</footer>
+<footer>Source: table <code id="fTable">tbl_Dispatch</code> on sheet Dispatch_Log. Size = thickness × width (× length for CTL sheets), mm. Red expected-arrival dates are overdue. Weights in metric tonnes.</footer>
 
 <script>
 /* ============================================================
@@ -126,6 +140,7 @@ const CONFIG = {
   clientId:  "627c4231-5cdf-40b8-8af8-fef565f62bb7",   // App registration (SPA) client ID
   shareLink: "https://bharatsteel-my.sharepoint.com/:x:/g/personal/ai_bharatsteels_in/IQDOH4nrxrblSKpXorTFnSqqASfRHovilL4NiU4XIGnVinE?e=DuhTKf",   // OneDrive/SharePoint sharing link to NMDC_Coil_Dispatch_Tracker.xlsx
   tableName: "tbl_Dispatch",
+  autoRefreshSeconds: 120
 };
 /* ============================================================ */
 
@@ -165,9 +180,15 @@ async function graph(path, tok){
   if(!r.ok) throw new Error(`Graph ${r.status}: ${(await r.text()).slice(0,200)}`);
   return r.json();
 }
+let itemRef = null; // {driveId, itemId} resolved once from the sharing link
 async function fetchLive(){
   const tok = await token();
-  const base = `/shares/${shareId(CONFIG.shareLink)}/driveItem/workbook/tables/${encodeURIComponent(CONFIG.tableName)}`;
+  if(!itemRef){
+    // The Excel workbook API rejects the /shares/... path for work accounts, so resolve the link to a drive item first.
+    const it = await graph(`/shares/${shareId(CONFIG.shareLink)}/driveItem?$select=id,name,parentReference`, tok);
+    itemRef = {driveId: it.parentReference.driveId, itemId: it.id};
+  }
+  const base = `/drives/${itemRef.driveId}/items/${itemRef.itemId}/workbook/tables/${encodeURIComponent(CONFIG.tableName)}`;
   const [hdr, body] = await Promise.all([graph(base + "/headerRowRange?$select=values", tok), graph(base + "/rows?$select=values", tok)]);
   const headers = hdr.values[0].map(h => String(h).trim());
   return body.value.map(x => Object.fromEntries(headers.map((h,i) => [h, x.values[0][i]])));
@@ -177,17 +198,19 @@ async function fetchLive(){
 function demoRows(){
   const d = (y,m,dd) => new Date(y,m-1,dd);
   return [
-    {n:1,entry:d(2026,9,14),inv:"NMDC/DO/26-27/4412",coil:"HRC-26-58421",grade:"E250 BR",thk:3,wid:1250,wt:22.64,status:"Arrived",veh:"TN 22 AZ 4821",tr:"VRL Logistics",lr:"LR-118204",disp:d(2026,9,14),expected:d(2026,9,17),arrived:d(2026,9,16),unit:"Chennai HO",rem:"Unloaded Bay 2"},
-    {n:2,entry:d(2026,9,15),inv:"NMDC/DO/26-27/4418",coil:"HRC-26-58437",grade:"E350 BR",thk:4,wid:1500,wt:24.11,status:"In-Transit",veh:"TN 20 BX 7719",tr:"TCI Freight",lr:"LR-118261",disp:d(2026,9,15),expected:d(2026,9,18),arrived:null,unit:"G2 Salem",rem:"Crossed Nellore 17-Sep"},
-    {n:3,entry:d(2026,9,16),inv:"NMDC/DO/26-27/4418",coil:"HRC-26-58438",grade:"E350 BR",thk:4,wid:1500,wt:23.87,status:"In-Transit",veh:"TN 20 BX 7719",tr:"TCI Freight",lr:"LR-118261",disp:d(2026,9,15),expected:d(2026,9,18),arrived:null,unit:"G2 Salem",rem:""},
-    {n:4,entry:d(2026,9,17),inv:"NMDC/DO/26-27/4425",coil:"HRC-26-58502",grade:"IS 1079 Gr.D",thk:2.5,wid:1250,wt:21.32,status:"Loaded",veh:"AP 39 TC 2280",tr:"Sri Balaji Roadlines",lr:"",disp:d(2026,9,17),expected:d(2026,9,20),arrived:null,unit:"Chennai HO",rem:"Awaiting gate-out"},
-    {n:5,entry:d(2026,9,17),inv:"NMDC/DO/26-27/4426",coil:"HRC-26-58519",grade:"E250 BR",thk:5,wid:1500,wt:25.04,status:"At NMDC Warehouse",veh:"",tr:"",lr:"",disp:null,expected:null,arrived:null,unit:"Chennai HO",rem:"DO released, vehicle to be placed"}
+    {n:1,entry:d(2026,9,14),so:"SO-26-10871",inv:"NMDC/DO/26-27/4412",coil:"HRC-26-58421",form:"Coil",grade:"E250 BR",thk:3,wid:1250,len:null,wt:22.64,status:"Arrived",veh:"TN 22 AZ 4821",tr:"VRL Logistics",lr:"LR-118204",disp:d(2026,9,14),expected:d(2026,9,17),arrived:d(2026,9,16),unit:"Chennai HO",rem:"Unloaded Bay 2"},
+    {n:2,entry:d(2026,9,14),so:"SO-26-10871",inv:"NMDC/DO/26-27/4412",coil:"HRC-26-58422",form:"Coil",grade:"E250 BR",thk:3,wid:1250,len:null,wt:22.91,status:"Arrived",veh:"TN 22 AZ 4821",tr:"VRL Logistics",lr:"LR-118204",disp:d(2026,9,14),expected:d(2026,9,17),arrived:d(2026,9,16),unit:"Chennai HO",rem:"Unloaded Bay 2"},
+    {n:3,entry:d(2026,9,15),so:"SO-26-10879",inv:"NMDC/DO/26-27/4418",coil:"HRC-26-58437",form:"Coil",grade:"E350 BR",thk:4,wid:1500,len:null,wt:24.11,status:"In-Transit",veh:"TN 20 BX 7719",tr:"TCI Freight",lr:"LR-118261",disp:d(2026,9,15),expected:d(2026,9,18),arrived:null,unit:"G2 Salem",rem:"Crossed Nellore 17-Sep"},
+    {n:4,entry:d(2026,9,15),so:"SO-26-10879",inv:"NMDC/DO/26-27/4418",coil:"HRC-26-58438",form:"Coil",grade:"E350 BR",thk:4,wid:1500,len:null,wt:23.87,status:"In-Transit",veh:"TN 20 BX 7719",tr:"TCI Freight",lr:"LR-118261",disp:d(2026,9,15),expected:d(2026,9,18),arrived:null,unit:"G2 Salem",rem:""},
+    {n:5,entry:d(2026,9,17),so:"SO-26-10884",inv:"NMDC/DO/26-27/4425",coil:"CTL-26-00912",form:"CTL Sheet",grade:"IS 1079 Gr.D",thk:2.5,wid:1250,len:2500,wt:21.32,status:"Loaded",veh:"AP 39 TC 2280",tr:"Sri Balaji Roadlines",lr:"",disp:d(2026,9,17),expected:d(2026,9,20),arrived:null,unit:"Chennai HO",rem:"Bundle of 118 sheets"},
+    {n:6,entry:d(2026,9,17),so:"SO-26-10884",inv:"NMDC/DO/26-27/4425",coil:"CTL-26-00913",form:"CTL Sheet",grade:"IS 1079 Gr.D",thk:2.5,wid:1250,len:2500,wt:20.86,status:"Loaded",veh:"AP 39 TC 2280",tr:"Sri Balaji Roadlines",lr:"",disp:d(2026,9,17),expected:d(2026,9,20),arrived:null,unit:"Chennai HO",rem:"Bundle of 115 sheets"},
+    {n:7,entry:d(2026,9,17),so:"SO-26-10886",inv:"NMDC/DO/26-27/4426",coil:"HRC-26-58519",form:"Coil",grade:"E250 BR",thk:5,wid:1500,len:null,wt:25.04,status:"At NMDC Warehouse",veh:"",tr:"",lr:"",disp:null,expected:null,arrived:null,unit:"Chennai HO",rem:"DO released, vehicle to be placed"}
   ];
 }
 function normalise(raw){
   return raw.filter(r => String(r["Coil No"]||"").trim() !== "").map((r,i) => ({
-    n: i+1, entry: serialToDate(r["Entry Date"]), inv: r["NMDC Invoice / DO No"], coil: r["Coil No"], grade: r["Grade"],
-    thk: r["Thk (mm)"], wid: r["Width (mm)"], wt: typeof r["Weight (MT)"]==="number" ? r["Weight (MT)"] : null,
+    n: i+1, entry: serialToDate(r["Entry Date"]), so: r["NMDC SO No"], inv: r["NMDC Invoice / DO No"], coil: r["Coil No"], form: r["Form"], grade: r["Grade"],
+    thk: r["Thk (mm)"], wid: r["Width (mm)"], len: r["Length (mm)"], wt: typeof r["Weight (MT)"]==="number" ? r["Weight (MT)"] : null,
     status: String(r["Status"]||"").trim(), veh: r["Vehicle No"], tr: r["Transporter Name"], lr: r["LR No"],
     disp: serialToDate(r["Dispatch Date (ex NMDC)"]), expected: serialToDate(r["Expected Arrival"]), arrived: serialToDate(r["Actual Arrival"]),
     unit: r["Receiving Unit"], rem: r["Remarks"]
@@ -196,7 +219,28 @@ function normalise(raw){
 
 /* ---------- Render ---------- */
 function pill(s){ return s ? `<span class="pill ${CLS[s]||""}">${esc(s)}</span>` : ""; }
-function size(r){ return (r.thk||r.wid) ? `${r.thk||"?"} × ${r.wid||"?"}` : ""; }
+function size(r){ if(!(r.thk||r.wid)) return ""; const b=`${r.thk||"?"} × ${r.wid||"?"}`; return (typeof r.len==="number" && r.len>0) ? `${b} × ${r.len}` : b; }
+function formPill(f){ return f ? `<span class="pill" style="background:${f==="CTL Sheet"?"#E8E0F5":"var(--blue-pale)"};color:${f==="CTL Sheet"?"#4A2A85":"var(--blue-deep)"}">${esc(f)}</span>` : ""; }
+function renderVehicles(){
+  const box = $("#vehicles"); box.innerHTML = "";
+  const groups = new Map();
+  rows.filter(r => r.veh && r.status !== "Arrived").forEach(r => {
+    const k = String(r.veh).trim().toUpperCase().replace(/\s+/g," ");
+    if(!groups.has(k)) groups.set(k, {veh:r.veh, tr:r.tr, lr:r.lr, status:r.status, expected:r.expected, unit:r.unit, coils:[]});
+    groups.get(k).coils.push(r);
+  });
+  if(!groups.size){ box.innerHTML = `<div class="empty">No vehicles loaded or on the road right now.</div>`; return; }
+  [...groups.values()].sort((a,b) => STATUSES.indexOf(b.status)-STATUSES.indexOf(a.status)).forEach(g => {
+    const wt = g.coils.reduce((a,r)=>a+(r.wt||0),0);
+    const late = g.expected && !g.coils.some(r=>r.arrived) && g.expected < today();
+    box.insertAdjacentHTML("beforeend", `<div class="vcard" style="--vc:${COLOR[g.status]||"#999"}">
+      <div class="vno">${esc(g.veh)}</div>
+      <div class="vtr">${esc(g.tr)||"Transporter not entered"}${g.lr?" · LR "+esc(g.lr):""} → ${esc(g.unit)||""}</div>
+      <div class="vcoils">${g.coils.map(r=>`<div><span><b>${esc(r.coil)}</b> ${esc(r.grade)} ${size(r)}${r.form==="CTL Sheet"?" (CTL)":""}</span><span>${fmtW(r.wt)}</span></div>`).join("")}</div>
+      <div class="vsum"><span>${pill(g.status)}${g.expected?` <span class="${late?"late":""}">exp. ${fmtD(g.expected)}</span>`:""}</span><span>${g.coils.length} ${g.coils.length===1?"item":"items"} · <b>${fmtW(wt)} MT</b></span></div>
+    </div>`);
+  });
+}
 function render(){
   const f = $("#flow"); f.innerHTML = "";
   STATUSES.forEach((s,i) => {
@@ -209,17 +253,18 @@ function render(){
   const late = rows.filter(isLate).length, tot = rows.reduce((a,r)=>a+(r.wt||0),0);
   $("#totals").innerHTML = `<span>Coils logged <b>${rows.length}</b></span><span>Total tonnage <b>${fmtW(tot)} MT</b></span><span class="late">Overdue arrivals <b>${late}</b></span>`;
 
+  renderVehicles();
   const rb = $("#recent tbody"); rb.innerHTML = "";
   [...rows].slice(-10).reverse().forEach(r => rb.insertAdjacentHTML("beforeend",
-    `<tr><td>${fmtD(r.entry)}</td><td><b>${esc(r.coil)}</b></td><td>${esc(r.grade)}</td><td>${size(r)}</td><td class="num">${fmtW(r.wt)}</td><td>${pill(r.status)}</td><td class="veh">${esc(r.veh)}</td><td>${esc(r.tr)}</td><td>${esc(r.lr)}</td><td class="${isLate(r)?"late":""}">${fmtD(r.expected)}</td><td>${fmtD(r.arrived)}</td><td>${esc(r.unit)}</td><td class="rem">${esc(r.rem)}</td></tr>`));
-  if(!rows.length) rb.innerHTML = `<tr><td colspan="13" class="empty">No coils logged yet. Add rows on Dispatch_Log and press Refresh.</td></tr>`;
+    `<tr><td>${fmtD(r.entry)}</td><td>${esc(r.so)}</td><td><b>${esc(r.coil)}</b></td><td>${formPill(r.form)}</td><td>${esc(r.grade)}</td><td>${size(r)}</td><td class="num">${fmtW(r.wt)}</td><td>${pill(r.status)}</td><td class="veh">${esc(r.veh)}</td><td>${esc(r.tr)}</td><td>${esc(r.lr)}</td><td class="${isLate(r)?"late":""}">${fmtD(r.expected)}</td><td>${fmtD(r.arrived)}</td><td>${esc(r.unit)}</td><td class="rem">${esc(r.rem)}</td></tr>`));
+  if(!rows.length) rb.innerHTML = `<tr><td colspan="15" class="empty">No coils logged yet. Add rows on Dispatch_Log and press Refresh.</td></tr>`;
 
   const ab = $("#all tbody"); ab.innerHTML = "";
   const shown = rows.filter(r => !filter || r.status === filter);
   $("#allCnt").textContent = `${shown.length} of ${rows.length}`;
   [...shown].reverse().forEach(r => ab.insertAdjacentHTML("beforeend",
-    `<tr><td>${r.n}</td><td>${fmtD(r.entry)}</td><td>${esc(r.inv)}</td><td><b>${esc(r.coil)}</b></td><td>${esc(r.grade)}</td><td>${size(r)}</td><td class="num">${fmtW(r.wt)}</td><td>${pill(r.status)}</td><td class="veh">${esc(r.veh)}</td><td>${esc(r.tr)}</td><td>${esc(r.lr)}</td><td>${fmtD(r.disp)}</td><td class="${isLate(r)?"late":""}">${fmtD(r.expected)}</td><td>${fmtD(r.arrived)}</td><td>${esc(r.unit)}</td><td class="rem">${esc(r.rem)}</td></tr>`));
-  if(!shown.length) ab.innerHTML = `<tr><td colspan="16" class="empty">Nothing in this status.</td></tr>`;
+    `<tr><td>${r.n}</td><td>${fmtD(r.entry)}</td><td>${esc(r.so)}</td><td>${esc(r.inv)}</td><td><b>${esc(r.coil)}</b></td><td>${formPill(r.form)}</td><td>${esc(r.grade)}</td><td>${size(r)}</td><td class="num">${fmtW(r.wt)}</td><td>${pill(r.status)}</td><td class="veh">${esc(r.veh)}</td><td>${esc(r.tr)}</td><td>${esc(r.lr)}</td><td>${fmtD(r.disp)}</td><td class="${isLate(r)?"late":""}">${fmtD(r.expected)}</td><td>${fmtD(r.arrived)}</td><td>${esc(r.unit)}</td><td class="rem">${esc(r.rem)}</td></tr>`));
+  if(!shown.length) ab.innerHTML = `<tr><td colspan="18" class="empty">Nothing in this status.</td></tr>`;
 }
 
 /* ---------- Refresh ---------- */
