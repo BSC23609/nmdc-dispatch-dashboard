@@ -22,12 +22,16 @@
 html,body{margin:0;background:var(--steel);color:var(--ink);font-family:Barlow,"Segoe UI",Arial,sans-serif;font-size:15px;line-height:1.4}
 h1,h2{font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;margin:0}
 header{background:var(--ink);color:#fff;display:flex;align-items:center;gap:18px;padding:12px 28px;flex-wrap:wrap}
-header img{height:50px;width:50px;background:#fff;border-radius:0%;padding:4px}
+header img{height:56px;width:56px;background:#fff;border-radius:50%;padding:4px}
 header .t{flex:1;min-width:220px}
 header h1{font-size:30px;font-weight:700;letter-spacing:.3px;line-height:1}
 header .sub{color:#B8D4E8;font-size:14px;margin-top:3px}
 .ctl{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .ctl .stamp{color:#B8D4E8;font-size:13px}
+.ctl .dest{display:flex;align-items:center;gap:8px;font-size:13px;color:#B8D4E8}
+.ctl select{font:600 14px Barlow,Arial,sans-serif;padding:8px 10px;border-radius:4px;border:1px solid #6b7b88;background:#2a2a2a;color:#fff}
+.byloc td.loc{font-weight:600} .byloc tr.tot td{background:var(--blue-pale);font-weight:700;border-top:2px solid var(--blue)}
+.byloc td.z{color:#B0BAC4}
 button{font:600 15px Barlow,Arial,sans-serif;border:0;border-radius:4px;padding:10px 18px;cursor:pointer;background:var(--blue);color:#fff}
 button:hover{background:var(--blue-deep)} button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 button.ghost{background:transparent;border:1px solid #6b7b88;color:#fff}
@@ -90,6 +94,7 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
     <div class="sub">Bharat Steel (Chennai) Pvt. Ltd. — live from the dispatch log workbook</div>
   </div>
   <div class="ctl">
+    <label class="dest"><span>Destination</span><select id="destSel"><option value="">All locations</option></select></label>
     <span class="stamp" id="stamp">Not loaded yet</span>
     <button id="btnAuto" class="ghost" type="button" aria-pressed="false">Auto-refresh off</button>
     <button id="btnRefresh" type="button">Refresh</button>
@@ -101,6 +106,13 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
 
   <div class="flow" id="flow"></div>
   <div class="totals" id="totals"></div>
+
+  <section class="byloc">
+    <h2>By destination <span class="cnt">all locations — click a row to focus the page on it</span></h2>
+    <div class="tw"><table id="byloc"><thead><tr>
+      <th>Destination</th><th class="num">Under Loading</th><th class="num">Loaded</th><th class="num">In-Transit</th><th class="num">Arrived</th><th class="num">Items</th><th class="num">Tonnage (MT)</th><th class="num">Overdue</th>
+    </tr></thead><tbody></tbody></table></div>
+  </section>
 
   <section>
     <h2>Vehicles on the road <span class="cnt">grouped by vehicle — a truck normally carries 2 coils</span></h2>
@@ -118,7 +130,7 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
     <h2>All coils <span class="cnt" id="allCnt"></span>
       <span class="filters" id="filters">
         <button type="button" data-f="" class="on">All</button>
-        <button type="button" data-f="At NMDC Warehouse">At NMDC Warehouse</button>
+        <button type="button" data-f="Under Loading">Under Loading</button>
         <button type="button" data-f="Loaded">Loaded</button>
         <button type="button" data-f="In-Transit">In-Transit</button>
         <button type="button" data-f="Arrived">Arrived</button>
@@ -144,12 +156,12 @@ const CONFIG = {
 };
 /* ============================================================ */
 
-const STATUSES = ["At NMDC Warehouse","Loaded","In-Transit","Arrived"];
-const CLS = {"At NMDC Warehouse":"s-wh","Loaded":"s-ld","In-Transit":"s-tr","Arrived":"s-ar"};
-const COLOR = {"At NMDC Warehouse":"#F39C12","Loaded":"#E2C51B","In-Transit":"#0069A6","Arrived":"#2E9E4F"};
+const STATUSES = ["Under Loading","Loaded","In-Transit","Arrived"];
+const CLS = {"Under Loading":"s-wh","Loaded":"s-ld","In-Transit":"s-tr","Arrived":"s-ar"};
+const COLOR = {"Under Loading":"#F39C12","Loaded":"#E2C51B","In-Transit":"#0069A6","Arrived":"#2E9E4F"};
 const DEMO = new URLSearchParams(location.search).has("demo") || !CONFIG.clientId || !CONFIG.shareLink;
 
-let rows = [], filter = "", timer = null, pca = null;
+let allRows = [], rows = [], filter = "", dest = "", timer = null, pca = null;
 
 const $ = s => document.querySelector(s);
 const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -213,7 +225,7 @@ function demoRows(){
     {n:4,entry:d(2026,9,15),so:"SO-26-10879",inv:"NMDC/DO/26-27/4418",coil:"HRC-26-58438",form:"Coil",grade:"E350 BR",thk:4,wid:1500,len:null,wt:23.87,status:"In-Transit",veh:"TN 20 BX 7719",tr:"TCI Freight",lr:"LR-118261",disp:d(2026,9,15),expected:d(2026,9,18),arrived:null,unit:"G2 Salem",rem:""},
     {n:5,entry:d(2026,9,17),so:"SO-26-10884",inv:"NMDC/DO/26-27/4425",coil:"CTL-26-00912",form:"CTL Sheet",grade:"IS 1079 Gr.D",thk:2.5,wid:1250,len:2500,wt:21.32,status:"Loaded",veh:"AP 39 TC 2280",tr:"Sri Balaji Roadlines",lr:"",disp:d(2026,9,17),expected:d(2026,9,20),arrived:null,unit:"Chennai HO",rem:"Bundle of 118 sheets"},
     {n:6,entry:d(2026,9,17),so:"SO-26-10884",inv:"NMDC/DO/26-27/4425",coil:"CTL-26-00913",form:"CTL Sheet",grade:"IS 1079 Gr.D",thk:2.5,wid:1250,len:2500,wt:20.86,status:"Loaded",veh:"AP 39 TC 2280",tr:"Sri Balaji Roadlines",lr:"",disp:d(2026,9,17),expected:d(2026,9,20),arrived:null,unit:"Chennai HO",rem:"Bundle of 115 sheets"},
-    {n:7,entry:d(2026,9,17),so:"SO-26-10886",inv:"NMDC/DO/26-27/4426",coil:"HRC-26-58519",form:"Coil",grade:"E250 BR",thk:5,wid:1500,len:null,wt:25.04,status:"At NMDC Warehouse",veh:"",tr:"",lr:"",disp:null,expected:null,arrived:null,unit:"Chennai HO",rem:"DO released, vehicle to be placed"}
+    {n:7,entry:d(2026,9,17),so:"SO-26-10886",inv:"NMDC/DO/26-27/4426",coil:"HRC-26-58519",form:"Coil",grade:"E250 BR",thk:5,wid:1500,len:null,wt:25.04,status:"Under Loading",veh:"",tr:"",lr:"",disp:null,expected:null,arrived:null,unit:"Coimbatore Branch",rem:"DO released, vehicle to be placed"}
   ];
 }
 function normalise(raw){
@@ -222,7 +234,7 @@ function normalise(raw){
     thk: r["Thk (mm)"], wid: r["Width (mm)"], len: r["Length (mm)"], wt: typeof r["Weight (MT)"]==="number" ? r["Weight (MT)"] : null,
     status: String(r["Status"]||"").trim(), veh: r["Vehicle No"], tr: r["Transporter Name"], lr: r["LR No"],
     disp: serialToDate(r["Dispatch Date (ex NMDC)"]), expected: serialToDate(r["Expected Arrival"]), arrived: serialToDate(r["Actual Arrival"]),
-    unit: r["Receiving Unit"], rem: r["Remarks"]
+    unit: String(r["Destination"] ?? r["Receiving Unit"] ?? "").trim(), rem: r["Remarks"]
   }));
 }
 
@@ -250,7 +262,24 @@ function renderVehicles(){
     </div>`);
   });
 }
+function renderByLocation(){
+  const tb = $("#byloc tbody"); tb.innerHTML = "";
+  const locs = [...new Set(allRows.map(r => r.unit || "Not specified"))].sort();
+  const cell = (n, cls="") => `<td class="num ${n?"":"z"} ${cls}">${n}</td>`;
+  const line = (label, list, isTot, key) => {
+    const by = st => list.filter(r => r.status === st).length;
+    const wt = list.reduce((a,r)=>a+(r.wt||0),0), late = list.filter(isLate).length;
+    return `<tr class="${isTot?"tot":""}" data-dest="${esc(key)}" style="cursor:pointer"><td class="loc">${esc(label)}</td>${cell(by("Under Loading"))}${cell(by("Loaded"))}${cell(by("In-Transit"))}${cell(by("Arrived"))}${cell(list.length)}<td class="num">${fmtW(wt)}</td>${cell(late, late?"late":"")}</tr>`;
+  };
+  tb.insertAdjacentHTML("beforeend", line("All locations", allRows, true, ""));
+  locs.forEach(l => tb.insertAdjacentHTML("beforeend", line(l, allRows.filter(r => (r.unit||"Not specified") === l), false, l === "Not specified" ? "" : l)));
+  const sel = $("#destSel"); const cur = sel.value;
+  sel.innerHTML = `<option value="">All locations</option>` + locs.filter(l=>l!=="Not specified").map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join("");
+  sel.value = [...sel.options].some(o=>o.value===cur) ? cur : "";
+}
 function render(){
+  rows = dest ? allRows.filter(r => r.unit === dest) : allRows;
+  renderByLocation();
   const f = $("#flow"); f.innerHTML = "";
   STATUSES.forEach((s,i) => {
     const list = rows.filter(r => r.status === s);
@@ -260,7 +289,7 @@ function render(){
       ${i<3?'<span class="arrow"></span>':""}</div>`);
   });
   const late = rows.filter(isLate).length, tot = rows.reduce((a,r)=>a+(r.wt||0),0);
-  $("#totals").innerHTML = `<span>Coils logged <b>${rows.length}</b></span><span>Total tonnage <b>${fmtW(tot)} MT</b></span><span class="late">Overdue arrivals <b>${late}</b></span>`;
+  $("#totals").innerHTML = `<span>${dest?esc(dest)+" — ":""}Items logged <b>${rows.length}</b></span><span>Total tonnage <b>${fmtW(tot)} MT</b></span><span class="late">Overdue arrivals <b>${late}</b></span>`;
 
   renderVehicles();
   const rb = $("#recent tbody"); rb.innerHTML = "";
@@ -280,8 +309,8 @@ function render(){
 async function refresh(){
   const b = $("#btnRefresh"); b.disabled = true; b.textContent = "Refreshing…";
   try{
-    if(DEMO){ rows = demoRows(); banner("Demo mode — showing the workbook's sample rows. Fill CONFIG in the file and host it to go live."); }
-    else { rows = normalise(await fetchLive()); banner(""); }
+    if(DEMO){ allRows = demoRows(); banner("Demo mode — showing the workbook's sample rows. Fill CONFIG in the file and host it to go live."); }
+    else { allRows = normalise(await fetchLive()); banner(""); }
     render();
     $("#stamp").textContent = "Updated " + new Date().toLocaleTimeString("en-IN",{hour:"2-digit",minute:"2-digit",second:"2-digit"});
   }catch(e){
@@ -298,6 +327,8 @@ $("#filters").addEventListener("click", e => {
   const b = e.target.closest("button"); if(!b) return;
   filter = b.dataset.f; $("#filters").querySelectorAll("button").forEach(x => x.classList.toggle("on", x === b)); render();
 });
+$("#destSel").addEventListener("change", e => { dest = e.target.value; render(); });
+$("#byloc").addEventListener("click", e => { const tr = e.target.closest("tr[data-dest]"); if(!tr) return; dest = tr.dataset.dest; $("#destSel").value = dest; render(); });
 $("#fTable").textContent = CONFIG.tableName;
 refresh();
 </script>
