@@ -32,8 +32,10 @@ header .sub{color:#B8D4E8;font-size:14px;margin-top:3px}
 .ctl select{font:600 14px Barlow,Arial,sans-serif;padding:8px 10px;border-radius:4px;border:1px solid #6b7b88;background:#2a2a2a;color:#fff}
 .byloc td.loc{font-weight:600} .byloc tr.tot td{background:var(--blue-pale);font-weight:700;border-top:2px solid var(--blue)}
 .byloc td.z{color:#B0BAC4}
-.byloc td.st small{display:block;font-size:11px;color:var(--muted);font-weight:400}
-.byloc td.st b{font-size:15px}
+.byloc td.st{white-space:nowrap}
+.byloc td.st .cnt2{display:inline-block;min-width:26px;padding:1px 7px;border-radius:10px;background:var(--blue-pale);color:var(--blue-deep);font-weight:700;text-align:center;margin-right:8px}
+.byloc td.st .mt2{font-weight:600}
+.byloc tr.tot td.st .cnt2{background:var(--blue);color:#fff}
 button{font:600 15px Barlow,Arial,sans-serif;border:0;border-radius:4px;padding:10px 18px;cursor:pointer;background:var(--blue);color:#fff}
 button:hover{background:var(--blue-deep)} button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 button.ghost{background:transparent;border:1px solid #6b7b88;color:#fff}
@@ -76,6 +78,8 @@ td.late{background:var(--late);color:var(--late-ink);font-weight:600}
 .vcard{border:1px solid var(--line);border-left:6px solid var(--vc);border-radius:4px;padding:12px 14px;background:#fff}
 .vcard .vno{font-family:"Barlow Condensed",Arial,sans-serif;font-size:24px;font-weight:700;letter-spacing:.5px;line-height:1.1}
 .vcard .vtr{color:var(--muted);font-size:14px;margin-bottom:8px}
+.vcard .vhead{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;flex-wrap:wrap}
+.vcard .vdest{font-family:"Barlow Condensed",Arial,sans-serif;font-size:18px;font-weight:700;color:var(--blue-deep);background:var(--blue-pale);padding:3px 10px;border-radius:4px;white-space:nowrap}
 .vcard .vcoils{font-size:13px;border-top:1px dashed var(--line);padding-top:8px;margin-top:4px}
 .vcard .vcoils div{display:flex;justify-content:space-between;gap:8px;padding:2px 0}
 .vcard .vsum{display:flex;justify-content:space-between;align-items:center;margin-top:8px;font-size:13px}
@@ -110,9 +114,9 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
   <div class="totals" id="totals"></div>
 
   <section class="byloc">
-    <h2>By destination <span class="cnt">all locations — click a row to focus the page on it</span></h2>
+    <h2>By destination <span class="cnt">dispatch count and tonnage per status — click a row to focus the page on it</span></h2>
     <div class="tw"><table id="byloc"><thead><tr>
-      <th>Destination</th><th class="num">Under Loading (MT)</th><th class="num">Loaded (MT)</th><th class="num">In-Transit (MT)</th><th class="num">Arrived (MT)</th><th class="num">Items</th><th class="num">Total (MT)</th><th class="num">Overdue</th>
+      <th>Destination</th><th class="num">Under Loading</th><th class="num">Loaded</th><th class="num">In-Transit</th><th class="num">Arrived</th><th class="num">Total items</th><th class="num">Total MT</th><th class="num">Overdue</th>
     </tr></thead><tbody></tbody></table></div>
   </section>
 
@@ -257,8 +261,8 @@ function renderVehicles(){
     const wt = g.coils.reduce((a,r)=>a+(r.wt||0),0);
     const late = g.expected && !g.coils.some(r=>r.arrived) && g.expected < today();
     box.insertAdjacentHTML("beforeend", `<div class="vcard" style="--vc:${COLOR[g.status]||"#999"}">
-      <div class="vno">${esc(g.veh)}</div>
-      <div class="vtr">${esc(g.tr)||"Transporter not entered"}${g.lr?" · LR "+esc(g.lr):""} → ${esc(g.unit)||""}</div>
+      <div class="vhead"><div class="vno">${esc(g.veh)}</div><div class="vdest">${g.unit?"→ "+esc(g.unit):"Destination not set"}</div></div>
+      <div class="vtr">${esc(g.tr)||"Transporter not entered"}${g.lr?" · LR "+esc(g.lr):""}</div>
       <div class="vcoils">${g.coils.map(r=>`<div><span><b>${esc(r.coil)}</b> ${esc(r.grade)} ${size(r)}${r.form==="CTL Sheet"?" (CTL)":""}</span><span>${fmtW(r.wt)}</span></div>`).join("")}</div>
       <div class="vsum"><span>${pill(g.status)}${g.expected?` <span class="${late?"late":""}">exp. ${fmtD(g.expected)}</span>`:""}</span><span>${g.coils.length} ${g.coils.length===1?"item":"items"} · <b>${fmtW(wt)} MT</b></span></div>
     </div>`);
@@ -269,7 +273,7 @@ function renderByLocation(){
   const locs = [...new Set(allRows.map(r => r.unit || "Not specified"))].sort();
   const cell = (n, cls="") => `<td class="num ${n?"":"z"} ${cls}">${n}</td>`;
   const scell = (list, st) => { const l = list.filter(r => r.status === st), t = l.reduce((a,r)=>a+(r.wt||0),0);
-    return l.length ? `<td class="num st"><b>${fmtW(t)}</b><small>${l.length} ${l.length===1?"item":"items"}</small></td>` : `<td class="num z st">—</td>`; };
+    return l.length ? `<td class="num st"><span class="cnt2">${l.length}</span><span class="mt2">${fmtW(t)} MT</span></td>` : `<td class="num z st">—</td>`; };
   const line = (label, list, isTot, key) => {
     const wt = list.reduce((a,r)=>a+(r.wt||0),0), late = list.filter(isLate).length;
     return `<tr class="${isTot?"tot":""}" data-dest="${esc(key)}" style="cursor:pointer"><td class="loc">${esc(label)}</td>${scell(list,"Under Loading")}${scell(list,"Loaded")}${scell(list,"In-Transit")}${scell(list,"Arrived")}${cell(list.length)}<td class="num"><b>${fmtW(wt)}</b></td>${cell(late, late?"late":"")}</tr>`;
