@@ -6,7 +6,13 @@
 <title>NMDC Coil Dispatch — Bharat Steel (Chennai)</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Barlow:wght@400;500;600&display=swap" rel="stylesheet">
-<script src="https://alcdn.msauth.net/browser/2.38.3/js/msal-browser.min.js"></script>
+<script src="https://alcdn.msauth.net/browser/2.35.0/js/msal-browser.min.js" crossorigin="anonymous"></script>
+<script>
+  // Fallback if the Microsoft CDN is blocked: load the same library from jsDelivr (npm package build).
+  if (typeof msal === "undefined") {
+    document.write('<script src="https://cdn.jsdelivr.net/npm/@azure/msal-browser@2.38.3/lib/msal-browser.min.js" crossorigin="anonymous"><\/script>');
+  }
+</script>
 <style>
 :root{
   --blue:#0069A6; --blue-deep:#004B78; --blue-pale:#E6F0F7; --ink:#1F1F1F; --steel:#F3F6F9; --line:#D5DEE6; --muted:#5B6773;
@@ -116,11 +122,10 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
    CONFIGURATION — fill these four values once, then host the file
    ============================================================ */
 const CONFIG = {
-  tenantId:  "f3f819ba-724b-4c0b-a9c0-2aa8d12bcbcc",   // Azure AD tenant ID (Entra admin centre > Overview)
-  clientId:  "627c4231-5cdf-40b8-8af8-fef565f62bb7",   // App registration (SPA) client ID
-  shareLink: "https://bharatsteel-my.sharepoint.com/:x:/g/personal/ai_bharatsteels_in/IQDOH4nrxrblSKpXorTFnSqqASfRHovilL4NiU4XIGnVinE?e=wYymHm",   // OneDrive/SharePoint sharing link to NMDC_Coil_Dispatch_Tracker.xlsx
+  tenantId:  "",   // Azure AD tenant ID (Entra admin centre > Overview)
+  clientId:  "",   // App registration (SPA) client ID
+  shareLink: "",   // OneDrive/SharePoint sharing link to NMDC_Coil_Dispatch_Tracker.xlsx
   tableName: "tbl_Dispatch",
-  autoRefreshSeconds: 120
 };
 /* ============================================================ */
 
@@ -144,6 +149,7 @@ function banner(msg, err){ const b=$("#banner"); b.hidden=!msg; b.textContent=ms
 /* ---------- Microsoft Graph ---------- */
 function shareId(url){ return "u!" + btoa(url).replace(/=+$/,"").replace(/\//g,"_").replace(/\+/g,"-"); }
 async function token(){
+  if(typeof msal === "undefined") throw new Error("the Microsoft sign-in library did not load — check the browser's network/ad-block settings and try again");
   if(!pca){
     pca = new msal.PublicClientApplication({auth:{clientId:CONFIG.clientId, authority:`https://login.microsoftonline.com/${CONFIG.tenantId}`, redirectUri: location.origin + location.pathname}, cache:{cacheLocation:"localStorage"}});
     await pca.initialize?.();
