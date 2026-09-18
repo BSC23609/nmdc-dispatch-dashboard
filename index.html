@@ -175,10 +175,11 @@ async function token(){
   try { return (await pca.acquireTokenSilent({scopes, account: acct})).accessToken; }
   catch { return (await pca.acquireTokenPopup({scopes, account: acct})).accessToken; }
 }
-async function graph(path, tok){
-  const r = await fetch("https://graph.microsoft.com/v1.0" + path, {headers:{Authorization:"Bearer " + tok}});
+async function graph(path, tok, opts={}){
+  const headers = {Authorization:"Bearer " + tok, "Cache-Control":"no-cache", Pragma:"no-cache", ...(opts.headers||{})};
+  const r = await fetch("https://graph.microsoft.com/v1.0" + path, {method: opts.method||"GET", headers, body: opts.body});
   if(!r.ok) throw new Error(`Graph ${r.status}: ${(await r.text()).slice(0,200)}`);
-  return r.json();
+  return r.status === 204 ? null : r.json();
 }
 let itemRef = null; // {driveId, itemId} resolved once from the sharing link
 async function fetchLive(){
@@ -188,10 +189,18 @@ async function fetchLive(){
     const it = await graph(`/shares/${shareId(CONFIG.shareLink)}/driveItem?$select=id,name,parentReference`, tok);
     itemRef = {driveId: it.parentReference.driveId, itemId: it.id};
   }
-  const base = `/drives/${itemRef.driveId}/items/${itemRef.itemId}/workbook/tables/${encodeURIComponent(CONFIG.tableName)}`;
-  const [hdr, body] = await Promise.all([graph(base + "/headerRowRange?$select=values", tok), graph(base + "/rows?$select=values", tok)]);
-  const headers = hdr.values[0].map(h => String(h).trim());
-  return body.value.map(x => Object.fromEntries(headers.map((h,i) => [h, x.values[0][i]])));
+  const wb = `/drives/${itemRef.driveId}/items/${itemRef.itemId}/workbook`;
+  // Open a fresh read-only workbook session each time so Graph loads the file as it is now, not a cached copy.
+  const sess = await graph(wb + "/createSession", tok, {method:"POST", headers:{"Content-Type":"application/json"}, body: JSON.stringify({persistChanges:false})});
+  const sh = {"workbook-session-id": sess.id};
+  try{
+    const base = `${wb}/tables/${encodeURIComponent(CONFIG.tableName)}`;
+    const [hdr, body] = await Promise.all([graph(base + "/headerRowRange?$select=values", tok, {headers:sh}), graph(base + "/rows?$select=values", tok, {headers:sh})]);
+    const headers = hdr.values[0].map(h => String(h).trim());
+    return body.value.map(x => Object.fromEntries(headers.map((h,i) => [h, x.values[0][i]])));
+  } finally {
+    graph(wb + "/closeSession", tok, {method:"POST", headers:sh}).catch(()=>{});
+  }
 }
 
 /* ---------- Demo data (same rows as the workbook samples) ---------- */
