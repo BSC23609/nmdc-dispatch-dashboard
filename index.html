@@ -22,7 +22,7 @@
 html,body{margin:0;background:var(--steel);color:var(--ink);font-family:Barlow,"Segoe UI",Arial,sans-serif;font-size:15px;line-height:1.4}
 h1,h2{font-family:"Barlow Condensed","Arial Narrow",Arial,sans-serif;margin:0}
 header{background:var(--ink);color:#fff;display:flex;align-items:center;gap:18px;padding:12px 28px;flex-wrap:wrap}
-header img{height:56px;width:56px;background:#fff;border-radius:50%;padding:4px}
+header img{height:50px;width:50px;background:#fff;border-radius:0%;padding:4px}
 header .t{flex:1;min-width:220px}
 header h1{font-size:30px;font-weight:700;letter-spacing:.3px;line-height:1}
 header .sub{color:#B8D4E8;font-size:14px;margin-top:3px}
@@ -32,6 +32,8 @@ header .sub{color:#B8D4E8;font-size:14px;margin-top:3px}
 .ctl select{font:600 14px Barlow,Arial,sans-serif;padding:8px 10px;border-radius:4px;border:1px solid #6b7b88;background:#2a2a2a;color:#fff}
 .byloc td.loc{font-weight:600} .byloc tr.tot td{background:var(--blue-pale);font-weight:700;border-top:2px solid var(--blue)}
 .byloc td.z{color:#B0BAC4}
+.byloc td.st small{display:block;font-size:11px;color:var(--muted);font-weight:400}
+.byloc td.st b{font-size:15px}
 button{font:600 15px Barlow,Arial,sans-serif;border:0;border-radius:4px;padding:10px 18px;cursor:pointer;background:var(--blue);color:#fff}
 button:hover{background:var(--blue-deep)} button:focus-visible{outline:3px solid #fff;outline-offset:2px}
 button.ghost{background:transparent;border:1px solid #6b7b88;color:#fff}
@@ -110,7 +112,7 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
   <section class="byloc">
     <h2>By destination <span class="cnt">all locations — click a row to focus the page on it</span></h2>
     <div class="tw"><table id="byloc"><thead><tr>
-      <th>Destination</th><th class="num">Under Loading</th><th class="num">Loaded</th><th class="num">In-Transit</th><th class="num">Arrived</th><th class="num">Items</th><th class="num">Tonnage (MT)</th><th class="num">Overdue</th>
+      <th>Destination</th><th class="num">Under Loading (MT)</th><th class="num">Loaded (MT)</th><th class="num">In-Transit (MT)</th><th class="num">Arrived (MT)</th><th class="num">Items</th><th class="num">Total (MT)</th><th class="num">Overdue</th>
     </tr></thead><tbody></tbody></table></div>
   </section>
 
@@ -266,10 +268,11 @@ function renderByLocation(){
   const tb = $("#byloc tbody"); tb.innerHTML = "";
   const locs = [...new Set(allRows.map(r => r.unit || "Not specified"))].sort();
   const cell = (n, cls="") => `<td class="num ${n?"":"z"} ${cls}">${n}</td>`;
+  const scell = (list, st) => { const l = list.filter(r => r.status === st), t = l.reduce((a,r)=>a+(r.wt||0),0);
+    return l.length ? `<td class="num st"><b>${fmtW(t)}</b><small>${l.length} ${l.length===1?"item":"items"}</small></td>` : `<td class="num z st">—</td>`; };
   const line = (label, list, isTot, key) => {
-    const by = st => list.filter(r => r.status === st).length;
     const wt = list.reduce((a,r)=>a+(r.wt||0),0), late = list.filter(isLate).length;
-    return `<tr class="${isTot?"tot":""}" data-dest="${esc(key)}" style="cursor:pointer"><td class="loc">${esc(label)}</td>${cell(by("Under Loading"))}${cell(by("Loaded"))}${cell(by("In-Transit"))}${cell(by("Arrived"))}${cell(list.length)}<td class="num">${fmtW(wt)}</td>${cell(late, late?"late":"")}</tr>`;
+    return `<tr class="${isTot?"tot":""}" data-dest="${esc(key)}" style="cursor:pointer"><td class="loc">${esc(label)}</td>${scell(list,"Under Loading")}${scell(list,"Loaded")}${scell(list,"In-Transit")}${scell(list,"Arrived")}${cell(list.length)}<td class="num"><b>${fmtW(wt)}</b></td>${cell(late, late?"late":"")}</tr>`;
   };
   tb.insertAdjacentHTML("beforeend", line("All locations", allRows, true, ""));
   locs.forEach(l => tb.insertAdjacentHTML("beforeend", line(l, allRows.filter(r => (r.unit||"Not specified") === l), false, l === "Not specified" ? "" : l)));
