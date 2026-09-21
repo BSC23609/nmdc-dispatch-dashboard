@@ -1,4 +1,4 @@
-// NMDC dispatch backend — single-file build (dispatch, sync, tform, arrive) — build 2026-09-21f (consignment lines, Ref key)
+// NMDC dispatch backend — single-file build (dispatch, sync, tform, arrive) — build 2026-09-21g (consignment lines, Ref key, SO master)
 
 // lib/db.js
 import { neon } from "@neondatabase/serverless";
@@ -59,7 +59,8 @@ async function handler(req, res) {
       "Remarks": r.remarks || "",
       "Entered By": r.entered_by || "BSC"
     }));
-    json(res, 200, { rows, fetchedAt: (/* @__PURE__ */ new Date()).toISOString() });
+    const sos = (await sql`select so_no, so_date, description, ordered_mt, ordered_coils, remarks from sos order by so_no`).map((x) => ({ so_no: x.so_no, so_date: x.so_date, description: x.description || "", ordered_mt: x.ordered_mt == null ? null : Number(x.ordered_mt), ordered_coils: x.ordered_coils, remarks: x.remarks || "" }));
+    json(res, 200, { rows, sos, fetchedAt: (/* @__PURE__ */ new Date()).toISOString() });
   } catch (e) {
     json(res, 502, { error: e.message });
   }
@@ -187,7 +188,7 @@ async function handler2(req, res) {
   if (!process.env.CRON_SECRET) return json(res, 503, { error: "CRON_SECRET not set" });
   const key = decodeURIComponent((/[?&]key=([^&]*)/.exec(req.url || "") || [])[1] || req.query && req.query.key || "");
   if (auth !== "Bearer " + process.env.CRON_SECRET && key !== process.env.CRON_SECRET) return json(res, 401, { error: "unauthorized" });
-  const out = { transporters: 0, imported: 0, updated: 0, adopted: 0, dispatches: 0, notified: 0, mirrored: 0, appended: 0, errors: [] };
+  const out = { sos: 0, transporters: 0, imported: 0, updated: 0, adopted: 0, dispatches: 0, notified: 0, mirrored: 0, appended: 0, errors: [] };
   const base = (process.env.PUBLIC_URL || `https://${req.headers.host}`).replace(/\/$/, "");
   try {
     await withSession(true, async (sess) => {
@@ -223,6 +224,19 @@ async function handler2(req, res) {
             }
           }
           if (link !== wantLink || sentVal !== sent) await sess.patch(`/tables/tbl_Transporters/rows/itemAt(index=${i})`, { values: [[name, mobile, wantLink, sentVal, active || "Yes"]] });
+        }
+      } catch (e) {
+        if (!/404|ItemNotFound/i.test(e.message)) throw e;
+      }
+      try {
+        const so = await sess.get(`/tables/tbl_SO/rows?$select=values`);
+        for (const [i, row] of so.value.entries()) {
+          const [soNo, soDate, desc, mt, coils, rem] = row.values[0];
+          if (!s(soNo)) continue;
+          const r = await sql`insert into sos (so_no, so_date, description, ordered_mt, ordered_coils, remarks, excel_row) values (${s(soNo)}, ${fromSerial(soDate)}, ${s(desc)}, ${n(mt)}, ${n(coils)}, ${s(rem)}, ${i})
+            on conflict (so_no) do update set so_date=excluded.so_date, description=excluded.description, ordered_mt=excluded.ordered_mt, ordered_coils=excluded.ordered_coils, remarks=excluded.remarks, excel_row=excluded.excel_row, updated_at=now()
+            where (sos.so_date, sos.description, sos.ordered_mt, sos.ordered_coils, sos.remarks) is distinct from (excluded.so_date, excluded.description, excluded.ordered_mt, excluded.ordered_coils, excluded.remarks) returning so_no`;
+          if (r.length) out.sos++;
         }
       } catch (e) {
         if (!/404|ItemNotFound/i.test(e.message)) throw e;
