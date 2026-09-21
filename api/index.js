@@ -171,7 +171,7 @@ var hash = (o) => crypto.createHash("sha1").update(OWN.map((k) => s(o[k])).join(
 async function handler2(req, res) {
   const auth = req.headers.authorization || "";
   if (!process.env.CRON_SECRET) return json(res, 503, { error: "CRON_SECRET not set" });
-  const key = req.query && req.query.key || "";
+  const key = decodeURIComponent((/[?&]key=([^&]*)/.exec(req.url || "") || [])[1] || req.query && req.query.key || "");
   if (auth !== "Bearer " + process.env.CRON_SECRET && key !== process.env.CRON_SECRET) return json(res, 401, { error: "unauthorized" });
   const out = { transporters: 0, imported: 0, updated: 0, dispatches: 0, notified: 0, mirrored: 0, appended: 0, errors: [] };
   const base = (process.env.PUBLIC_URL || `https://${req.headers.host}`).replace(/\/$/, "");
@@ -395,7 +395,8 @@ var group = (coils) => {
   return Object.entries(g).map(([do_no, coils2]) => ({ do_no, coils: coils2 }));
 };
 async function handler3(req, res) {
-  const token2 = String((req.method === "GET" ? req.query.token : req.body?.token) || "");
+  const qtoken = decodeURIComponent((/[?&]token=([^&]*)/.exec(req.url || "") || [])[1] || req.query && req.query.token || "");
+  const token2 = String((req.method === "GET" ? qtoken : req.body?.token) || "");
   if (!token2) return json(res, 400, { error: "token missing" });
   let tp = (await sql`select * from transporters where token=${token2} and active`)[0];
   let disp = null;
