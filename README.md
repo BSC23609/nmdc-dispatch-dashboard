@@ -22,6 +22,9 @@ One Excel row = one **consignment line** (invoice + vehicle + size). "No of Coil
 Rows have no natural key, so the sync assigns a **Ref** (D-0001…) into the Ref column and matches on it. Never type or change Ref.
 Excel-side edits of Status / Vehicle / LR / dates are adopted into Neon when Neon has no newer change; transporter or yard changes are mirrored back. Put CANCELLED in Remarks to hide a line.
 
+## Sales orders
+`SO_Master` sheet (`tbl_SO`): SO No, SO Date, Description, Ordered Qty (MT), Ordered Coils, Remarks — BSC-owned, imported by the sync into `sos`. One SO is dispatched over many trucks to many units; the Excel Dashboard and the web page show per SO: ordered, tonnage in each status, dispatched total, pending, lines and coils, with the lines listed under each SO on the web page.
+
 ## Two ways a dispatch gets in
 1. **BSC pre-fills** the coil rows in Excel with Transporter Name (+ Mobile). The transporter is WhatsApped and completes truck details + status from their link.
 2. **Transporter from scratch**: register the transporter once on the **Transporters** sheet (Name, Mobile, Active=Yes). The sync creates a standing link, writes it into the sheet and WhatsApps it (template `nmdc_transporter_link`). On that link they see all their dispatches (both modes) and can create new ones (DO, SO, destination, coils + weights, truck). Those rows are appended to `tbl_Dispatch` with **Entered By** = transporter name and are owned by the system (edit through the transporter, not in Excel).

@@ -69,3 +69,15 @@ create index if not exists coils_transporter_idx on coils(transporter_id);
 -- v3: consignment lines (one row = invoice + vehicle + size), keyed by system Ref stored in coil_no
 alter table coils add column if not exists n_coils integer;
 alter table coils add column if not exists mirror_hash text;
+
+-- v4: sales-order master for ordered vs dispatched vs pending
+create table if not exists sos (
+  so_no          text primary key,
+  so_date        date,
+  description    text,
+  ordered_mt     numeric,
+  ordered_coils  integer,
+  remarks        text,
+  excel_row      integer,
+  updated_at     timestamptz not null default now()
+);
