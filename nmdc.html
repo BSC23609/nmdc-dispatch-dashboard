@@ -25,6 +25,7 @@ header .sub{color:#B8D4E8;font-size:14px;margin-top:3px}
 .ctl select{font:600 14px Barlow,Arial,sans-serif;padding:8px 10px;border-radius:4px;border:1px solid #6b7b88;background:#2a2a2a;color:#fff}
 .byloc td.loc{font-weight:600} .byloc tr.tot td{background:var(--blue-pale);font-weight:700;border-top:2px solid var(--blue)}
 .byloc td.z{color:#B0BAC4}
+td.mono{font-family:ui-monospace,Consolas,monospace;font-size:12px;color:var(--muted)}
 .byloc td.st{white-space:nowrap}
 .byloc td.st .cnt2{display:inline-block;min-width:26px;padding:1px 7px;border-radius:10px;background:var(--blue-pale);color:var(--blue-deep);font-weight:700;text-align:center;margin-right:8px}
 .byloc td.st .mt2{font-weight:600}
@@ -95,7 +96,7 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
     <div class="sub">Bharat Steel (Chennai) Pvt. Ltd. · <a href="./index.html" style="color:#B8D4E8">← Weighbridge (outbound)</a></div>
   </div>
   <div class="ctl">
-    <label class="dest"><span>Destination</span><select id="destSel"><option value="">All locations</option></select></label>
+    <label class="dest"><span>Receiving unit</span><select id="destSel"><option value="">All units</option></select></label>
     <span class="stamp" id="stamp">Not loaded yet</span>
     <button id="btnAuto" class="ghost" type="button" aria-pressed="false">Auto-refresh off</button>
     <button id="btnRefresh" type="button">Refresh</button>
@@ -109,21 +110,21 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
   <div class="totals" id="totals"></div>
 
   <section class="byloc">
-    <h2>By destination <span class="cnt">dispatch count and tonnage per status — click a row to focus the page on it</span></h2>
+    <h2>By receiving unit <span class="cnt">dispatch count and tonnage per status — click a row to focus the page on it</span></h2>
     <div class="tw"><table id="byloc"><thead><tr>
-      <th>Destination</th><th class="num">Under Loading</th><th class="num">Loaded</th><th class="num">In-Transit</th><th class="num">Arrived</th><th class="num">Total items</th><th class="num">Total MT</th><th class="num">Overdue</th>
+      <th>Receiving unit</th><th class="num">Under Loading</th><th class="num">Loaded</th><th class="num">In-Transit</th><th class="num">Arrived</th><th class="num">Total lines</th><th class="num">Total MT</th><th class="num">Overdue</th>
     </tr></thead><tbody></tbody></table></div>
   </section>
 
   <section>
-    <h2>Vehicles on the road <span class="cnt">grouped by vehicle — a truck normally carries 2 coils</span></h2>
+    <h2>Vehicles on the road <span class="cnt">grouped by vehicle — not yet delivered</span></h2>
     <div id="vehicles" class="vgrid"></div>
   </section>
 
   <section>
     <h2>Last 10 dispatches <span class="cnt">most recent entries first</span></h2>
     <div class="tw"><table id="recent"><thead><tr>
-      <th>Entry</th><th>SO no</th><th>Coil no</th><th>Form</th><th>Grade</th><th>Size</th><th class="num">Weight (MT)</th><th>Status</th><th>Vehicle no</th><th>Transporter</th><th>LR no</th><th>Expected</th><th>Arrived</th><th>Unit</th><th>Remarks</th>
+      <th>Entry</th><th>SO no</th><th>Invoice / DO</th><th class="num">Coils</th><th>Form</th><th>Grade</th><th>Size</th><th class="num">Weight (MT)</th><th>Status</th><th>Vehicle no</th><th>Transporter</th><th>LR no</th><th>Expected</th><th>Arrived</th><th>Unit</th><th>Remarks</th>
     </tr></thead><tbody></tbody></table></div>
   </section>
 
@@ -138,7 +139,7 @@ footer code{background:#fff;border:1px solid var(--line);padding:1px 5px;border-
       </span>
     </h2>
     <div class="tw"><table id="all"><thead><tr>
-      <th>#</th><th>Entry</th><th>SO no</th><th>DO / invoice</th><th>Coil no</th><th>Form</th><th>Grade</th><th>Size</th><th class="num">Weight (MT)</th><th>Status</th><th>Vehicle no</th><th>Transporter</th><th>LR no</th><th>Dispatched</th><th>Expected</th><th>Arrived</th><th>Unit</th><th>Remarks</th>
+      <th>#</th><th>Ref</th><th>Entry</th><th>SO no</th><th>Invoice / DO</th><th class="num">Coils</th><th>Form</th><th>Grade</th><th>Size</th><th class="num">Weight (MT)</th><th>Status</th><th>Vehicle no</th><th>Transporter</th><th>LR no</th><th>Dispatched</th><th>Expected</th><th>Arrived</th><th>Unit</th><th>Remarks</th>
     </tr></thead><tbody></tbody></table></div>
   </section>
 </main>
@@ -193,29 +194,25 @@ async function fetchLive(force){
 function demoRows(){
   const d = (y,m,dd) => new Date(y,m-1,dd);
   return [
-    {n:1,entry:d(2026,9,14),so:"SO-26-10871",inv:"NMDC/DO/26-27/4412",coil:"HRC-26-58421",form:"Coil",grade:"E250 BR",thk:3,wid:1250,len:null,wt:22.64,status:"Arrived",veh:"TN 22 AZ 4821",tr:"VRL Logistics",lr:"LR-118204",disp:d(2026,9,14),expected:d(2026,9,17),arrived:d(2026,9,16),unit:"Chennai HO",rem:"Unloaded Bay 2"},
-    {n:2,entry:d(2026,9,14),so:"SO-26-10871",inv:"NMDC/DO/26-27/4412",coil:"HRC-26-58422",form:"Coil",grade:"E250 BR",thk:3,wid:1250,len:null,wt:22.91,status:"Arrived",veh:"TN 22 AZ 4821",tr:"VRL Logistics",lr:"LR-118204",disp:d(2026,9,14),expected:d(2026,9,17),arrived:d(2026,9,16),unit:"Chennai HO",rem:"Unloaded Bay 2"},
-    {n:3,entry:d(2026,9,15),so:"SO-26-10879",inv:"NMDC/DO/26-27/4418",coil:"HRC-26-58437",form:"Coil",grade:"E350 BR",thk:4,wid:1500,len:null,wt:24.11,status:"In-Transit",veh:"TN 20 BX 7719",tr:"TCI Freight",lr:"LR-118261",disp:d(2026,9,15),expected:d(2026,9,18),arrived:null,unit:"G2 Salem",rem:"Crossed Nellore 17-Sep"},
-    {n:4,entry:d(2026,9,15),so:"SO-26-10879",inv:"NMDC/DO/26-27/4418",coil:"HRC-26-58438",form:"Coil",grade:"E350 BR",thk:4,wid:1500,len:null,wt:23.87,status:"In-Transit",veh:"TN 20 BX 7719",tr:"TCI Freight",lr:"LR-118261",disp:d(2026,9,15),expected:d(2026,9,18),arrived:null,unit:"G2 Salem",rem:""},
-    {n:5,entry:d(2026,9,17),so:"SO-26-10884",inv:"NMDC/DO/26-27/4425",coil:"CTL-26-00912",form:"CTL Sheet",grade:"IS 1079 Gr.D",thk:2.5,wid:1250,len:2500,wt:21.32,status:"Loaded",veh:"AP 39 TC 2280",tr:"Sri Balaji Roadlines",lr:"",disp:d(2026,9,17),expected:d(2026,9,20),arrived:null,unit:"Chennai HO",rem:"Bundle of 118 sheets"},
-    {n:6,entry:d(2026,9,17),so:"SO-26-10884",inv:"NMDC/DO/26-27/4425",coil:"CTL-26-00913",form:"CTL Sheet",grade:"IS 1079 Gr.D",thk:2.5,wid:1250,len:2500,wt:20.86,status:"Loaded",veh:"AP 39 TC 2280",tr:"Sri Balaji Roadlines",lr:"",disp:d(2026,9,17),expected:d(2026,9,20),arrived:null,unit:"Chennai HO",rem:"Bundle of 115 sheets"},
-    {n:7,entry:d(2026,9,17),so:"SO-26-10886",inv:"NMDC/DO/26-27/4426",coil:"HRC-26-58519",form:"Coil",grade:"E250 BR",thk:5,wid:1500,len:null,wt:25.04,status:"Under Loading",veh:"",tr:"",lr:"",disp:null,expected:null,arrived:null,unit:"Coimbatore Branch",rem:"DO released, vehicle to be placed"}
+    {n:1,ref:"D-0001",entry:d(2026,9,18),so:"40008519",inv:"IN2026015072",ncoils:2,form:"Coil",grade:"E250 BR",thk:2.5,wid:1250,len:null,wt:41.91,status:"Arrived",veh:"CG17LE4930",tr:"SHEKAR SHARMA",mob:"",lr:"",disp:d(2026,9,12),expected:d(2026,9,16),arrived:d(2026,9,17),unit:"Chennai HO",rem:""},
+    {n:2,ref:"D-0002",entry:d(2026,9,20),so:"40008451",inv:"IN2026015737",ncoils:null,form:"CTL",grade:"E250 BR",thk:4,wid:1500,len:6300,wt:21.4,status:"In-Transit",veh:"CG04PW7954",tr:"SHEKAR SHARMA",mob:"",lr:"",disp:d(2026,9,20),expected:d(2026,9,24),arrived:null,unit:"G2 Salem",rem:""},
+    {n:3,ref:"D-0003",entry:d(2026,9,20),so:"40008451",inv:"",ncoils:null,form:"CTL",grade:"E250 BR",thk:3.8,wid:1250,len:2500,wt:null,status:"Under Loading",veh:"CG17LE3956",tr:"SHEKAR SHARMA",mob:"",lr:"",disp:null,expected:null,arrived:null,unit:"Chennai HO",rem:""}
   ];
 }
 function normalise(raw){
-  return raw.filter(r => String(r["Coil No"]||"").trim() !== "").map((r,i) => ({
-    n: i+1, entry: serialToDate(r["Entry Date"]), so: r["NMDC SO No"], inv: r["NMDC Invoice / DO No"], coil: r["Coil No"], form: r["Form"], grade: r["Grade"],
+  return raw.filter(r => [r["NMDC Invoice / DO No"], r["NMDC SO No"], r["Status"], r["Vehicle No"], r["Weight (MT)"]].some(v => String(v ?? "").trim() !== "")).map((r,i) => ({
+    n: i+1, ref: r["Ref"] || "", entry: serialToDate(r["Entry Date"]), so: r["NMDC SO No"], inv: r["NMDC Invoice / DO No"], ncoils: typeof r["No of Coils"]==="number" ? r["No of Coils"] : null, form: r["Form"], grade: r["Grade"],
     thk: r["Thk (mm)"], wid: r["Width (mm)"], len: r["Length (mm)"], wt: typeof r["Weight (MT)"]==="number" ? r["Weight (MT)"] : null,
     status: String(r["Status"]||"").trim(), veh: r["Vehicle No"], tr: r["Transporter Name"], mob: r["Transporter Mobile"], lr: r["LR No"],
     disp: serialToDate(r["Dispatch Date (ex NMDC)"]), expected: serialToDate(r["Expected Arrival"]), arrived: serialToDate(r["Actual Arrival"]),
-    unit: String(r["Destination"] ?? r["Receiving Unit"] ?? "").trim(), rem: r["Remarks"]
+    unit: String(r["Receiving Unit"] ?? r["Destination"] ?? "").trim(), rem: r["Remarks"]
   }));
 }
 
 /* ---------- Render ---------- */
 function pill(s){ return s ? `<span class="pill ${CLS[s]||""}">${esc(s)}</span>` : ""; }
 function size(r){ if(!(r.thk||r.wid)) return ""; const b=`${r.thk||"?"} × ${r.wid||"?"}`; return (typeof r.len==="number" && r.len>0) ? `${b} × ${r.len}` : b; }
-function formPill(f){ return f ? `<span class="pill" style="background:${f==="CTL Sheet"?"#E8E0F5":"var(--blue-pale)"};color:${f==="CTL Sheet"?"#4A2A85":"var(--blue-deep)"}">${esc(f)}</span>` : ""; }
+function formPill(f){ const ctl = /^ctl/i.test(String(f||"")); return f ? `<span class="pill" style="background:${ctl?"#E8E0F5":"var(--blue-pale)"};color:${ctl?"#4A2A85":"var(--blue-deep)"}">${esc(f)}</span>` : ""; }
 function renderVehicles(){
   const box = $("#vehicles"); box.innerHTML = "";
   const groups = new Map();
@@ -231,8 +228,8 @@ function renderVehicles(){
     box.insertAdjacentHTML("beforeend", `<div class="vcard" style="--vc:${COLOR[g.status]||"#999"}">
       <div class="vhead"><div class="vno">${esc(g.veh)}</div><div class="vdest">${g.unit?"→ "+esc(g.unit):"Destination not set"}</div></div>
       <div class="vtr">${esc(g.tr)||"Transporter not entered"}${g.mob?" · "+esc(g.mob):""}${g.lr?" · LR "+esc(g.lr):""}</div>
-      <div class="vcoils">${g.coils.map(r=>`<div><span><b>${esc(r.coil)}</b> ${esc(r.grade)} ${size(r)}${r.form==="CTL Sheet"?" (CTL)":""}</span><span>${fmtW(r.wt)}</span></div>`).join("")}</div>
-      <div class="vsum"><span>${pill(g.status)}${g.expected?` <span class="${late?"late":""}">exp. ${fmtD(g.expected)}</span>`:""}</span><span>${g.coils.length} ${g.coils.length===1?"item":"items"} · <b>${fmtW(wt)} MT</b></span></div>
+      <div class="vcoils">${g.coils.map(r=>`<div><span><b>${esc(r.inv||(r.so?"SO "+r.so:r.ref))}</b> ${r.ncoils?r.ncoils+" coil"+(r.ncoils==1?"":"s")+" ":""}${/^ctl/i.test(r.form||"")?"CTL ":""}${esc(r.grade)} ${size(r)}</span><span>${fmtW(r.wt)}</span></div>`).join("")}</div>
+      <div class="vsum"><span>${pill(g.status)}${g.expected?` <span class="${late?"late":""}">exp. ${fmtD(g.expected)}</span>`:""}</span><span>${g.coils.length} ${g.coils.length===1?"line":"lines"}${g.coils.reduce((a,r)=>a+(r.ncoils||0),0)?" · "+g.coils.reduce((a,r)=>a+(r.ncoils||0),0)+" coils":""} · <b>${fmtW(wt)} MT</b></span></div>
       <button type="button" class="arrive" data-veh="${esc(g.veh)}">Mark delivered at ${esc(g.unit)||"destination"}</button>
     </div>`);
   });
@@ -247,7 +244,7 @@ function renderByLocation(){
     const wt = list.reduce((a,r)=>a+(r.wt||0),0), late = list.filter(isLate).length;
     return `<tr class="${isTot?"tot":""}" data-dest="${esc(key)}" style="cursor:pointer"><td class="loc">${esc(label)}</td>${scell(list,"Under Loading")}${scell(list,"Loaded")}${scell(list,"In-Transit")}${scell(list,"Arrived")}${cell(list.length)}<td class="num"><b>${fmtW(wt)}</b></td>${cell(late, late?"late":"")}</tr>`;
   };
-  tb.insertAdjacentHTML("beforeend", line("All locations", allRows, true, ""));
+  tb.insertAdjacentHTML("beforeend", line("All units", allRows, true, ""));
   locs.forEach(l => tb.insertAdjacentHTML("beforeend", line(l, allRows.filter(r => (r.unit||"Not specified") === l), false, l === "Not specified" ? "" : l)));
   const sel = $("#destSel"); const cur = sel.value;
   sel.innerHTML = `<option value="">All locations</option>` + locs.filter(l=>l!=="Not specified").map(l=>`<option value="${esc(l)}">${esc(l)}</option>`).join("");
@@ -261,24 +258,24 @@ function render(){
     const list = rows.filter(r => r.status === s);
     const mt = list.reduce((a,r) => a + (r.wt||0), 0);
     f.insertAdjacentHTML("beforeend", `<div class="stage" style="--c:${COLOR[s]}">
-      <div class="lbl">${esc(s)}</div><div class="n tick">${list.length}</div><div class="mt">${fmtW(mt)} MT</div>
+      <div class="lbl">${esc(s)}</div><div class="n tick">${list.length}</div><div class="mt">${fmtW(mt)} MT${list.reduce((a,r)=>a+(r.ncoils||0),0)?" · "+list.reduce((a,r)=>a+(r.ncoils||0),0)+" coils":""}</div>
       ${i<3?'<span class="arrow"></span>':""}</div>`);
   });
   const late = rows.filter(isLate).length, tot = rows.reduce((a,r)=>a+(r.wt||0),0);
-  $("#totals").innerHTML = `<span>${dest?esc(dest)+" — ":""}Items logged <b>${rows.length}</b></span><span>Total tonnage <b>${fmtW(tot)} MT</b></span><span class="late">Overdue arrivals <b>${late}</b></span>`;
+  $("#totals").innerHTML = `<span>${dest?esc(dest)+" — ":""}Lines logged <b>${rows.length}</b></span><span>Total tonnage <b>${fmtW(tot)} MT</b></span><span class="late">Overdue arrivals <b>${late}</b></span>`;
 
   renderVehicles();
   const rb = $("#recent tbody"); rb.innerHTML = "";
   [...rows].slice(-10).reverse().forEach(r => rb.insertAdjacentHTML("beforeend",
-    `<tr><td>${fmtD(r.entry)}</td><td>${esc(r.so)}</td><td><b>${esc(r.coil)}</b></td><td>${formPill(r.form)}</td><td>${esc(r.grade)}</td><td>${size(r)}</td><td class="num">${fmtW(r.wt)}</td><td>${pill(r.status)}</td><td class="veh">${esc(r.veh)}</td><td>${esc(r.tr)}</td><td>${esc(r.lr)}</td><td class="${isLate(r)?"late":""}">${fmtD(r.expected)}</td><td>${fmtD(r.arrived)}</td><td>${esc(r.unit)}</td><td class="rem">${esc(r.rem)}</td></tr>`));
-  if(!rows.length) rb.innerHTML = `<tr><td colspan="15" class="empty">No coils logged yet. Add rows on Dispatch_Log and press Refresh.</td></tr>`;
+    `<tr><td>${fmtD(r.entry)}</td><td>${esc(r.so)}</td><td><b>${esc(r.inv)}</b></td><td class="num">${r.ncoils ?? ""}</td><td>${formPill(r.form)}</td><td>${esc(r.grade)}</td><td>${size(r)}</td><td class="num">${fmtW(r.wt)}</td><td>${pill(r.status)}</td><td class="veh">${esc(r.veh)}</td><td>${esc(r.tr)}</td><td>${esc(r.lr)}</td><td class="${isLate(r)?"late":""}">${fmtD(r.expected)}</td><td>${fmtD(r.arrived)}</td><td>${esc(r.unit)}</td><td class="rem">${esc(r.rem)}</td></tr>`));
+  if(!rows.length) rb.innerHTML = `<tr><td colspan="16" class="empty">No coils logged yet. Add rows on Dispatch_Log and press Refresh.</td></tr>`;
 
   const ab = $("#all tbody"); ab.innerHTML = "";
   const shown = rows.filter(r => !filter || r.status === filter);
   $("#allCnt").textContent = `${shown.length} of ${rows.length}`;
   [...shown].reverse().forEach(r => ab.insertAdjacentHTML("beforeend",
-    `<tr><td>${r.n}</td><td>${fmtD(r.entry)}</td><td>${esc(r.so)}</td><td>${esc(r.inv)}</td><td><b>${esc(r.coil)}</b></td><td>${formPill(r.form)}</td><td>${esc(r.grade)}</td><td>${size(r)}</td><td class="num">${fmtW(r.wt)}</td><td>${pill(r.status)}</td><td class="veh">${esc(r.veh)}</td><td>${esc(r.tr)}</td><td>${esc(r.lr)}</td><td>${fmtD(r.disp)}</td><td class="${isLate(r)?"late":""}">${fmtD(r.expected)}</td><td>${fmtD(r.arrived)}</td><td>${esc(r.unit)}</td><td class="rem">${esc(r.rem)}</td></tr>`));
-  if(!shown.length) ab.innerHTML = `<tr><td colspan="18" class="empty">Nothing in this status.</td></tr>`;
+    `<tr><td>${r.n}</td><td class="mono">${esc(r.ref)}</td><td>${fmtD(r.entry)}</td><td>${esc(r.so)}</td><td><b>${esc(r.inv)}</b></td><td class="num">${r.ncoils ?? ""}</td><td>${formPill(r.form)}</td><td>${esc(r.grade)}</td><td>${size(r)}</td><td class="num">${fmtW(r.wt)}</td><td>${pill(r.status)}</td><td class="veh">${esc(r.veh)}</td><td>${esc(r.tr)}</td><td>${esc(r.lr)}</td><td>${fmtD(r.disp)}</td><td class="${isLate(r)?"late":""}">${fmtD(r.expected)}</td><td>${fmtD(r.arrived)}</td><td>${esc(r.unit)}</td><td class="rem">${esc(r.rem)}</td></tr>`));
+  if(!shown.length) ab.innerHTML = `<tr><td colspan="19" class="empty">Nothing in this status.</td></tr>`;
 }
 
 /* ---------- Refresh ---------- */

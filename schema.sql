@@ -65,3 +65,7 @@ alter table coils add column if not exists transporter_id integer;
 alter table coils add column if not exists entered_by text;
 alter table dispatches add column if not exists transporter_id integer;
 create index if not exists coils_transporter_idx on coils(transporter_id);
+
+-- v3: consignment lines (one row = invoice + vehicle + size), keyed by system Ref stored in coil_no
+alter table coils add column if not exists n_coils integer;
+alter table coils add column if not exists mirror_hash text;

@@ -17,13 +17,18 @@
 | `lib/` | Neon, Graph and WATI helpers. |
 | `schema.sql` | Run once in Neon. |
 
+## Data model (v3)
+One Excel row = one **consignment line** (invoice + vehicle + size). "No of Coils" is a count (blank for CTL bundles); weight is the line total.
+Rows have no natural key, so the sync assigns a **Ref** (D-0001…) into the Ref column and matches on it. Never type or change Ref.
+Excel-side edits of Status / Vehicle / LR / dates are adopted into Neon when Neon has no newer change; transporter or yard changes are mirrored back. Put CANCELLED in Remarks to hide a line.
+
 ## Two ways a dispatch gets in
 1. **BSC pre-fills** the coil rows in Excel with Transporter Name (+ Mobile). The transporter is WhatsApped and completes truck details + status from their link.
 2. **Transporter from scratch**: register the transporter once on the **Transporters** sheet (Name, Mobile, Active=Yes). The sync creates a standing link, writes it into the sheet and WhatsApps it (template `nmdc_transporter_link`). On that link they see all their dispatches (both modes) and can create new ones (DO, SO, destination, coils + weights, truck). Those rows are appended to `tbl_Dispatch` with **Entered By** = transporter name and are owned by the system (edit through the transporter, not in Excel).
 
 ## Ownership rule
-Excel (BSC staff) owns: SO/DO, coil no, form, grade, size, weight, destination, transporter name + mobile, remarks.
-Neon (transporter / yard) owns: status, vehicle no, LR no, dispatch date, expected & actual arrival. These are written back into the same Excel row — do not overtype them, and never sort/insert/delete rows in `tbl_Dispatch`.
+Excel (BSC staff) owns: SO/DO, no of coils, form, grade, size, weight, receiving unit, transporter name + mobile, remarks — and may also fill the status block when the transporter is not using the link.
+Transporter / yard changes to status, vehicle no, LR no, dispatch date, expected & actual arrival are written back into the same Excel row. Never sort/insert/delete rows in `tbl_Dispatch`.
 
 ## Environment variables (Vercel → Settings → Environment Variables)
 | Name | Value |
@@ -31,6 +36,7 @@ Neon (transporter / yard) owns: status, vehicle no, LR no, dispatch date, expect
 | `DATABASE_URL` | Neon connection string (pooled) |
 | `TENANT_ID`, `CLIENT_ID`, `CLIENT_SECRET` | Entra app registration (needs **Application** permission `Files.ReadWrite.All`, admin-consented) |
 | `SHARE_LINK` | OneDrive sharing link of the workbook |
+| `DRIVE_USER` + `FILE_PATH` | alternative to SHARE_LINK: the OneDrive owner (e.g. `ai@bharatsteels.in`) and the file path from the OneDrive root (e.g. `NMDC_Coil_Dispatch_Tracker.xlsx`). If both are set they take precedence. |
 | `TABLE_NAME` | optional, default `tbl_Dispatch` |
 | `CRON_SECRET` | long random string; cron-job.org sends it as `Authorization: Bearer …` |
 | `PUBLIC_URL` | e.g. `https://dispatch.bharatsteels.in` (used in the WhatsApp link) |
