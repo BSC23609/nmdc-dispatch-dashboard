@@ -1,4 +1,4 @@
-// NMDC dispatch backend — single-file build (dispatch, sync, tform, arrive)
+// NMDC dispatch backend — single-file build (dispatch, sync, tform, arrive) — build 2026-09-21c
 
 // lib/db.js
 import { neon } from "@neondatabase/serverless";
@@ -172,7 +172,8 @@ async function handler2(req, res) {
   const auth = req.headers.authorization || "";
   if (!process.env.CRON_SECRET) return json(res, 503, { error: "CRON_SECRET not set" });
   const key = decodeURIComponent((/[?&]key=([^&]*)/.exec(req.url || "") || [])[1] || req.query && req.query.key || "");
-  if (auth !== "Bearer " + process.env.CRON_SECRET && key !== process.env.CRON_SECRET) return json(res, 401, { error: "unauthorized" });
+  if (auth !== "Bearer " + process.env.CRON_SECRET && key !== process.env.CRON_SECRET)
+    return json(res, 401, { error: "unauthorized", hint: { url_seen: req.url, key_received_length: key.length, secret_configured_length: (process.env.CRON_SECRET || "").length, header_present: !!auth } });
   const out = { transporters: 0, imported: 0, updated: 0, dispatches: 0, notified: 0, mirrored: 0, appended: 0, errors: [] };
   const base = (process.env.PUBLIC_URL || `https://${req.headers.host}`).replace(/\/$/, "");
   try {
