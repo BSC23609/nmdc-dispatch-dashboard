@@ -1,4 +1,4 @@
-// NMDC dispatch backend — single-file build (dispatch, sync, tform, arrive) — build 2026-09-21c
+// NMDC dispatch backend — single-file build (dispatch, sync, tform, arrive) — build 2026-09-21d
 
 // lib/db.js
 import { neon } from "@neondatabase/serverless";
@@ -487,8 +487,10 @@ async function handler4(req, res) {
 
 // _router.js
 async function handler5(req, res) {
-  const path = (req.url || "").split("?")[0].replace(/\/+$/, "");
-  const route = path.replace(/^\/api\/?/, "");
+  const url = req.url || "";
+  let route = decodeURIComponent((/[?&]route=([^&]*)/.exec(url) || [])[1] || req.query && req.query.route || "");
+  if (!route || route === "index") route = url.split("?")[0].replace(/\/+$/, "").replace(/^\/api\/?/, "");
+  route = route.replace(/^\/+|\/+$/g, "");
   if (route === "dispatch") return handler(req, res);
   if (route === "sync") return handler2(req, res);
   if (route === "tform") return handler3(req, res);
